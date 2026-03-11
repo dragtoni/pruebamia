@@ -101,3 +101,208 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "App para valorar alquileres con estrellas. Los usuarios (inquilinos y caseros) pueden registrarse, añadir pisos con fotos, y valorar pisos con múltiples categorías (estado del piso, calidad/precio, comportamiento del casero, ubicación, fotos reales). Búsqueda por zonas."
+
+backend:
+  - task: "User Registration API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented POST /api/auth/register with email, password, name, user_type (inquilino/casero)"
+
+  - task: "User Login API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented POST /api/auth/login with JWT token generation"
+
+  - task: "Create Piso API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented POST /api/pisos with direccion, zona, precio_mensual, descripcion, fotos (base64)"
+
+  - task: "List Pisos API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented GET /api/pisos with optional zona filter and rating calculation"
+
+  - task: "Get Piso Detail API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented GET /api/pisos/{id} with all valoraciones"
+
+  - task: "Create Valoracion API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented POST /api/pisos/{id}/valoraciones with 5 rating categories"
+
+  - task: "Get Zonas API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented GET /api/zonas to get unique zones"
+
+frontend:
+  - task: "Landing Page"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Welcome screen with login/register buttons"
+
+  - task: "Login Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/auth/login.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Login form with email/password"
+
+  - task: "Register Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/auth/register.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Registration with user type selection (inquilino/casero)"
+
+  - task: "Explore/Home Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "List of pisos with search by zona and rating display"
+
+  - task: "Add Piso Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/add.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Form to add new piso with photos"
+
+  - task: "Piso Detail Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/piso/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Piso details with photo gallery and valoraciones"
+
+  - task: "Rating Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/piso/valorar/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "5-star rating for each category"
+
+  - task: "Profile Screen"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/app/(tabs)/profile.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "User profile with logout"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "User Registration API"
+    - "User Login API"
+    - "Create Piso API"
+    - "List Pisos API"
+    - "Create Valoracion API"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Initial implementation complete. Please test all backend APIs: registration, login, create piso, list pisos, get piso detail, create valoracion, get zonas. All endpoints require /api prefix."
