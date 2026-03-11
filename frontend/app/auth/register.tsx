@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,15 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import axios from 'axios';
+
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+interface Ciudad {
+  nombre: string;
+  emoji: string;
+  featured: boolean;
+}
 
 export default function Register() {
   const router = useRouter();
@@ -23,8 +32,24 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userType, setUserType] = useState<'inquilino' | 'casero'>('inquilino');
+  const [ciudad, setCiudad] = useState('Granada');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [ciudades, setCiudades] = useState<Ciudad[]>([]);
+  const [showCitySelector, setShowCitySelector] = useState(false);
+
+  useEffect(() => {
+    fetchCiudades();
+  }, []);
+
+  const fetchCiudades = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/ciudades`);
+      setCiudades(response.data.ciudades);
+    } catch (error) {
+      console.error('Error fetching ciudades:', error);
+    }
+  };
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -39,7 +64,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(email, password, name, userType);
+      await register(email, password, name, userType, ciudad);
       router.replace('/(tabs)');
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Error al registrarse';
@@ -48,6 +73,8 @@ export default function Register() {
       setLoading(false);
     }
   };
+
+  const selectedCiudad = ciudades.find(c => c.nombre === ciudad);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -64,12 +91,56 @@ export default function Register() {
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Ionicons name="star" size={60} color="#ffd700" />
+            <Ionicons name="star" size={50} color="#ffd700" />
             <Text style={styles.title}>Crear Cuenta</Text>
-            <Text style={styles.subtitle}>Únete a la comunidad</Text>
+            <Text style={styles.subtitle}>Únete a la comunidad en toda España</Text>
           </View>
 
           <View style={styles.form}>
+            {/* Ciudad Selector */}
+            <Text style={styles.label}>¿Dónde buscas piso?</Text>
+            <TouchableOpacity
+              style={styles.citySelector}
+              onPress={() => setShowCitySelector(!showCitySelector)}
+            >
+              <Text style={styles.citySelectorEmoji}>{selectedCiudad?.emoji || '🏠'}</Text>
+              <Text style={styles.citySelectorText}>{ciudad}</Text>
+              {selectedCiudad?.featured && (
+                <View style={styles.featuredBadge}>
+                  <Ionicons name="star" size={12} color="#ffd700" />
+                </View>
+              )}
+              <Ionicons name={showCitySelector ? 'chevron-up' : 'chevron-down'} size={20} color="#888" />
+            </TouchableOpacity>
+
+            {showCitySelector && (
+              <View style={styles.cityList}>
+                {ciudades.map((c) => (
+                  <TouchableOpacity
+                    key={c.nombre}
+                    style={[
+                      styles.cityOption,
+                      ciudad === c.nombre && styles.cityOptionActive,
+                      c.featured && styles.cityOptionFeatured,
+                    ]}
+                    onPress={() => {
+                      setCiudad(c.nombre);
+                      setShowCitySelector(false);
+                    }}
+                  >
+                    <Text style={styles.cityOptionEmoji}>{c.emoji}</Text>
+                    <Text style={[
+                      styles.cityOptionText,
+                      ciudad === c.nombre && styles.cityOptionTextActive
+                    ]}>{c.nombre}</Text>
+                    {c.featured && (
+                      <Ionicons name="star" size={14} color="#ffd700" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             <Text style={styles.label}>¿Quién eres?</Text>
             <View style={styles.typeSelector}>
               <TouchableOpacity
@@ -80,8 +151,8 @@ export default function Register() {
                 onPress={() => setUserType('inquilino')}
               >
                 <Ionicons
-                  name="person"
-                  size={24}
+                  name="school"
+                  size={22}
                   color={userType === 'inquilino' ? '#0f0f1a' : '#888'}
                 />
                 <Text
@@ -90,7 +161,7 @@ export default function Register() {
                     userType === 'inquilino' && styles.typeButtonTextActive,
                   ]}
                 >
-                  Inquilino
+                  Estudiante
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -102,7 +173,7 @@ export default function Register() {
               >
                 <Ionicons
                   name="key"
-                  size={24}
+                  size={22}
                   color={userType === 'casero' ? '#0f0f1a' : '#888'}
                 />
                 <Text
@@ -117,7 +188,7 @@ export default function Register() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="person" size={20} color="#888" style={styles.inputIcon} />
+              <Ionicons name="person" size={18} color="#888" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Nombre"
@@ -128,7 +199,7 @@ export default function Register() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="mail" size={20} color="#888" style={styles.inputIcon} />
+              <Ionicons name="mail" size={18} color="#888" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Email"
@@ -141,7 +212,7 @@ export default function Register() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color="#888" style={styles.inputIcon} />
+              <Ionicons name="lock-closed" size={18} color="#888" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Contraseña"
@@ -153,7 +224,7 @@ export default function Register() {
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons
                   name={showPassword ? 'eye-off' : 'eye'}
-                  size={20}
+                  size={18}
                   color="#888"
                 />
               </TouchableOpacity>
@@ -199,43 +270,102 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   backButton: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 16,
+    marginTop: 12,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#888',
-    marginTop: 8,
+    marginTop: 6,
   },
   form: {
     width: '100%',
   },
   label: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  citySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#2a2a3e',
+    gap: 10,
+  },
+  citySelectorEmoji: {
+    fontSize: 22,
+  },
+  citySelectorText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+  },
+  featuredBadge: {
+    backgroundColor: '#ffd70020',
+    padding: 4,
+    borderRadius: 6,
+  },
+  cityList: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a3e',
+    maxHeight: 200,
+  },
+  cityOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a3e',
+  },
+  cityOptionActive: {
+    backgroundColor: '#ffd70020',
+  },
+  cityOptionFeatured: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#ffd700',
+  },
+  cityOptionEmoji: {
+    fontSize: 18,
+  },
+  cityOptionText: {
+    flex: 1,
+    color: '#888',
+    fontSize: 15,
+  },
+  cityOptionTextActive: {
+    color: '#fff',
     fontWeight: '600',
   },
   typeSelector: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   typeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
     backgroundColor: '#1a1a2e',
     borderWidth: 1,
@@ -248,7 +378,7 @@ const styles = StyleSheet.create({
   },
   typeButtonText: {
     color: '#888',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   typeButtonTextActive: {
@@ -259,42 +389,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#1a1a2e',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#2a2a3e',
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    height: 56,
+    height: 50,
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
   },
   button: {
     backgroundColor: '#ffd700',
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#0f0f1a',
   },
   linkButton: {
-    marginTop: 24,
+    marginTop: 20,
     alignItems: 'center',
   },
   linkText: {
     color: '#888',
-    fontSize: 16,
+    fontSize: 15,
   },
   linkTextBold: {
     color: '#ffd700',

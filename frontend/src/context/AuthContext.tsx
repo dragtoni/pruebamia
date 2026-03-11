@@ -9,6 +9,7 @@ interface User {
   email: string;
   name: string;
   user_type: string;
+  ciudad: string;
   created_at: string;
 }
 
@@ -16,8 +17,10 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
+  selectedCity: string;
+  setSelectedCity: (city: string) => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, userType: string) => Promise<void>;
+  register: (email: string, password: string, name: string, userType: string, ciudad: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -35,6 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedCity, setSelectedCity] = useState<string>('Granada');
 
   useEffect(() => {
     loadStoredAuth();
@@ -44,16 +48,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const storedToken = await AsyncStorage.getItem('token');
       const storedUser = await AsyncStorage.getItem('user');
+      const storedCity = await AsyncStorage.getItem('selectedCity');
       
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+      }
+      if (storedCity) {
+        setSelectedCity(storedCity);
       }
     } catch (error) {
       console.error('Error loading auth:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSetSelectedCity = async (city: string) => {
+    setSelectedCity(city);
+    await AsyncStorage.setItem('selectedCity', city);
   };
 
   const login = async (email: string, password: string) => {
@@ -69,14 +82,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     setToken(access_token);
     setUser(userData);
+    setSelectedCity(userData.ciudad || 'Granada');
   };
 
-  const register = async (email: string, password: string, name: string, userType: string) => {
+  const register = async (email: string, password: string, name: string, userType: string, ciudad: string) => {
     const response = await axios.post(`${API_URL}/api/auth/register`, {
       email,
       password,
       name,
       user_type: userType,
+      ciudad,
     });
     
     const { access_token, user: userData } = response.data;
@@ -86,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     setToken(access_token);
     setUser(userData);
+    setSelectedCity(ciudad);
   };
 
   const logout = async () => {
@@ -96,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, selectedCity, setSelectedCity: handleSetSelectedCity, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
