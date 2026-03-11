@@ -10,22 +10,21 @@ import {
   ActivityIndicator,
   Image,
   Share,
-  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
+import { useAuth } from '../../src/context/AuthContext';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-// Granada zones for students
-const GRANADA_ZONES = ['Centro', 'Realejo', 'Albaicín', 'Zaidín', 'Camino de Ronda', 'Facultades', 'Cartuja', 'Chana', 'Beiro'];
 
 interface Piso {
   id: string;
   direccion: string;
   zona: string;
+  ciudad: string;
   precio_mensual: number;
   descripcion: string | null;
   fotos: string[];
@@ -34,22 +33,31 @@ interface Piso {
   created_by_name: string;
 }
 
+interface Ciudad {
+  nombre: string;
+  emoji: string;
+  featured: boolean;
+}
+
 export default function ExploreScreen() {
   const router = useRouter();
+  const { selectedCity, setSelectedCity } = useAuth();
   const [pisos, setPisos] = useState<Piso[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchZona, setSearchZona] = useState('');
-  const [zonas, setZonas] = useState<string[]>(GRANADA_ZONES);
+  const [zonas, setZonas] = useState<string[]>([]);
+  const [ciudades, setCiudades] = useState<Ciudad[]>([]);
   const [showBadCaseros, setShowBadCaseros] = useState(false);
+  const [showCityModal, setShowCityModal] = useState(false);
 
   const fetchPisos = useCallback(async (zona?: string) => {
     try {
-      const params = zona ? { zona } : {};
+      const params: any = { ciudad: selectedCity };
+      if (zona) params.zona = zona;
       const response = await axios.get(`${API_URL}/api/pisos`, { params });
       let data = response.data;
       
-      // Sort by worst if showing bad caseros
       if (showBadCaseros) {
         data = data.sort((a: Piso, b: Piso) => a.promedio_general - b.promedio_general);
       }
@@ -61,24 +69,36 @@ export default function ExploreScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [showBadCaseros]);
+  }, [showBadCaseros, selectedCity]);
 
   const fetchZonas = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/zonas`);
-      const apiZonas = response.data.zonas;
-      // Merge with Granada zones
-      const allZonas = [...new Set([...GRANADA_ZONES, ...apiZonas])];
-      setZonas(allZonas);
+      const response = await axios.get(`${API_URL}/api/ciudades/${selectedCity}/zonas`);
+      setZonas(response.data.zonas.map((z: any) => z.nombre));
     } catch (error) {
       console.error('Error fetching zonas:', error);
     }
   };
 
+  const fetchCiudades = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/ciudades`);
+      setCiudades(response.data.ciudades);
+    } catch (error) {
+      console.error('Error fetching ciudades:', error);
+    }
+  };
+
   useEffect(() => {
+    fetchCiudades();
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setSearchZona('');
     fetchPisos();
     fetchZonas();
-  }, [fetchPisos]);
+  }, [selectedCity]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -93,13 +113,10 @@ export default function ExploreScreen() {
   const handleShare = async (piso: Piso) => {
     try {
       const message = piso.promedio_general < 3 
-        ? `⚠️ ¡CUIDADO! Piso en ${piso.zona} con ${piso.promedio_general}⭐ - ${piso.precio_mensual}€/mes. ¡Mira las valoraciones en Casero Stars!`
-        : `🏠 Piso en ${piso.zona} - ${piso.promedio_general}⭐ - ${piso.precio_mensual}€/mes. ¡Valorado en Casero Stars!`;
+        ? `⚠️ ¡CUIDADO! Piso en ${piso.ciudad} (${piso.zona}) con ${piso.promedio_general}⭐ - ${piso.precio_mensual}€/mes. ¡Mira las valoraciones en Casero Stars!`
+        : `🏠 Piso en ${piso.ciudad} (${piso.zona}) - ${piso.promedio_general}⭐ - ${piso.precio_mensual}€/mes. ¡Valorado en Casero Stars!`;
       
-      await Share.share({
-        message,
-        title: 'Casero Stars - Valora tu alquiler',
-      });
+      await Share.share({ message, title: 'Casero Stars' });
     } catch (error) {
       console.error('Error sharing:', error);
     }
@@ -112,7 +129,7 @@ export default function ExploreScreen() {
         <Ionicons
           key={i}
           name={i <= rating ? 'star' : i - 0.5 <= rating ? 'star-half' : 'star-outline'}
-          size={16}
+          size={14}
           color="#ffd700"
         />
       );
@@ -129,11 +146,13 @@ export default function ExploreScreen() {
   };
 
   const getPriceBadge = (price: number) => {
-    if (price <= 300) return { text: '💚 Precio justo', color: '#4ade80' };
-    if (price <= 450) return { text: '💛 Aceptable', color: '#ffd700' };
+    if (price <= 300) return { text: '💚 Justo', color: '#4ade80' };
+    if (price <= 450) return { text: '💛 OK', color: '#ffd700' };
     if (price <= 600) return { text: '🧡 Caro', color: '#ff8c00' };
     return { text: '❤️‍🔥 Abusivo', color: '#ff4444' };
   };
+
+  const selectedCiudad = ciudades.find(c => c.nombre === selectedCity);
 
   const renderPiso = ({ item }: { item: Piso }) => {
     const ratingBadge = getRatingBadge(item.promedio_general);
@@ -145,44 +164,28 @@ export default function ExploreScreen() {
         onPress={() => router.push(`/piso/${item.id}`)}
       >
         {item.fotos && item.fotos.length > 0 ? (
-          <Image
-            source={{ uri: item.fotos[0] }}
-            style={styles.pisoImage}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: item.fotos[0] }} style={styles.pisoImage} resizeMode="cover" />
         ) : (
           <View style={styles.pisoImagePlaceholder}>
-            <Ionicons name="home" size={40} color="#444" />
-            <Text style={styles.noPhotoText}>Sin fotos aún</Text>
+            <Ionicons name="home" size={36} color="#444" />
           </View>
         )}
         
-        {/* Share Button */}
-        <TouchableOpacity
-          style={styles.shareButton}
-          onPress={() => handleShare(item)}
-        >
-          <Ionicons name="share-social" size={20} color="#fff" />
+        <TouchableOpacity style={styles.shareButton} onPress={() => handleShare(item)}>
+          <Ionicons name="share-social" size={18} color="#fff" />
         </TouchableOpacity>
         
-        {/* Rating Badge */}
         <View style={[styles.ratingBadge, { backgroundColor: ratingBadge.bg }]}>
-          <Text style={[styles.ratingBadgeText, { color: ratingBadge.color }]}>
-            {ratingBadge.text}
-          </Text>
+          <Text style={[styles.ratingBadgeText, { color: ratingBadge.color }]}>{ratingBadge.text}</Text>
         </View>
         
         <View style={styles.pisoInfo}>
           <View style={styles.pisoHeader}>
             <Text style={styles.pisoZona}>{item.zona}</Text>
-            <Text style={[styles.priceBadge, { color: priceBadge.color }]}>
-              {priceBadge.text}
-            </Text>
+            <Text style={[styles.priceBadge, { color: priceBadge.color }]}>{priceBadge.text}</Text>
           </View>
           
-          <Text style={styles.pisoDireccion} numberOfLines={1}>
-            {item.direccion}
-          </Text>
+          <Text style={styles.pisoDireccion} numberOfLines={1}>{item.direccion}</Text>
           
           <View style={styles.priceRow}>
             <Text style={styles.pisoPrecio}>{item.precio_mensual}€</Text>
@@ -192,7 +195,7 @@ export default function ExploreScreen() {
           <View style={styles.ratingContainer}>
             <View style={styles.stars}>{renderStars(item.promedio_general)}</View>
             <Text style={styles.ratingText}>
-              {item.promedio_general.toFixed(1)} ({item.total_valoraciones} opiniones)
+              {item.promedio_general.toFixed(1)} ({item.total_valoraciones})
             </Text>
           </View>
         </View>
@@ -202,13 +205,61 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🏠 Explora Granada</Text>
-        <Text style={styles.headerSubtitle}>Pisos valorados por estudiantes</Text>
-      </View>
+      {/* City Selector */}
+      <TouchableOpacity style={styles.cityBar} onPress={() => setShowCityModal(true)}>
+        <Text style={styles.cityEmoji}>{selectedCiudad?.emoji || '🏠'}</Text>
+        <View style={styles.cityInfo}>
+          <Text style={styles.cityName}>{selectedCity}</Text>
+          <Text style={styles.citySubtext}>Toca para cambiar ciudad</Text>
+        </View>
+        {selectedCiudad?.featured && (
+          <View style={styles.featuredTag}>
+            <Ionicons name="star" size={12} color="#ffd700" />
+            <Text style={styles.featuredText}>Destacada</Text>
+          </View>
+        )}
+        <Ionicons name="chevron-down" size={20} color="#888" />
+      </TouchableOpacity>
 
-      {/* Toggle Bad Caseros */}
+      {/* City Modal */}
+      <Modal visible={showCityModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🇪🇸 Selecciona ciudad</Text>
+              <TouchableOpacity onPress={() => setShowCityModal(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={ciudades}
+              keyExtractor={(item) => item.nombre}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.cityOption,
+                    selectedCity === item.nombre && styles.cityOptionActive,
+                    item.featured && styles.cityOptionFeatured,
+                  ]}
+                  onPress={() => {
+                    setSelectedCity(item.nombre);
+                    setShowCityModal(false);
+                  }}
+                >
+                  <Text style={styles.cityOptionEmoji}>{item.emoji}</Text>
+                  <Text style={[
+                    styles.cityOptionText,
+                    selectedCity === item.nombre && styles.cityOptionTextActive
+                  ]}>{item.nombre}</Text>
+                  {item.featured && <Ionicons name="star" size={16} color="#ffd700" />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bad Caseros Toggle */}
       <TouchableOpacity
         style={[styles.badCaserosToggle, showBadCaseros && styles.badCaserosToggleActive]}
         onPress={() => {
@@ -217,89 +268,72 @@ export default function ExploreScreen() {
           fetchPisos(searchZona || undefined);
         }}
       >
-        <Ionicons name="warning" size={20} color={showBadCaseros ? '#0f0f1a' : '#ff6b6b'} />
+        <Ionicons name="warning" size={18} color={showBadCaseros ? '#0f0f1a' : '#ff6b6b'} />
         <Text style={[styles.badCaserosText, showBadCaseros && styles.badCaserosTextActive]}>
-          {showBadCaseros ? 'Mostrando peores primero' : 'Ver peores caseros'}
+          {showBadCaseros ? 'Mostrando peores' : 'Ver peores caseros'}
         </Text>
       </TouchableOpacity>
 
       {/* Search */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#888" />
+          <Ionicons name="search" size={18} color="#888" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar zona en Granada..."
+            placeholder={`Buscar zona en ${selectedCity}...`}
             placeholderTextColor="#666"
             value={searchZona}
             onChangeText={setSearchZona}
             onSubmitEditing={handleSearch}
           />
           {searchZona.length > 0 && (
-            <TouchableOpacity
-              onPress={() => {
-                setSearchZona('');
-                fetchPisos();
-              }}
-            >
-              <Ionicons name="close-circle" size={20} color="#888" />
+            <TouchableOpacity onPress={() => { setSearchZona(''); fetchPisos(); }}>
+              <Ionicons name="close-circle" size={18} color="#888" />
             </TouchableOpacity>
           )}
         </View>
         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-          <Ionicons name="search" size={20} color="#0f0f1a" />
+          <Ionicons name="search" size={18} color="#0f0f1a" />
         </TouchableOpacity>
       </View>
 
       {/* Zone Chips */}
-      <View style={styles.zonasContainer}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={zonas}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.zonaChip,
-                searchZona === item && styles.zonaChipActive,
-              ]}
-              onPress={() => {
-                setSearchZona(item);
-                setLoading(true);
-                fetchPisos(item);
-              }}
-            >
-              <Text
-                style={[
-                  styles.zonaChipText,
-                  searchZona === item && styles.zonaChipTextActive,
-                ]}
+      {zonas.length > 0 && (
+        <View style={styles.zonasContainer}>
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={zonas}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.zonaChip, searchZona === item && styles.zonaChipActive]}
+                onPress={() => {
+                  setSearchZona(item);
+                  setLoading(true);
+                  fetchPisos(item);
+                }}
               >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
+                <Text style={[styles.zonaChipText, searchZona === item && styles.zonaChipTextActive]}>
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ffd700" />
-          <Text style={styles.loadingText}>Buscando pisos...</Text>
         </View>
       ) : pisos.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="home-outline" size={64} color="#444" />
-          <Text style={styles.emptyText}>No hay pisos en esta zona</Text>
-          <Text style={styles.emptySubtext}>
-            ¡Sé el primero en añadir uno y ayudar a otros estudiantes!
-          </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
-            onPress={() => router.push('/(tabs)/add')}
-          >
-            <Ionicons name="add-circle" size={20} color="#0f0f1a" />
+          <Ionicons name="home-outline" size={56} color="#444" />
+          <Text style={styles.emptyText}>No hay pisos en {selectedCity}</Text>
+          <Text style={styles.emptySubtext}>¡Sé el primero en añadir uno!</Text>
+          <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/(tabs)/add')}>
+            <Ionicons name="add" size={18} color="#0f0f1a" />
             <Text style={styles.emptyButtonText}>Añadir piso</Text>
           </TouchableOpacity>
         </View>
@@ -309,13 +343,7 @@ export default function ExploreScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderPiso}
           contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#ffd700"
-            />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffd700" />}
         />
       )}
     </SafeAreaView>
@@ -323,232 +351,76 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f0f1a',
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  headerSubtitle: {
-    color: '#888',
-    fontSize: 14,
-  },
-  badCaserosToggle: {
+  container: { flex: 1, backgroundColor: '#0f0f1a' },
+  cityBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2a1a1a',
+    backgroundColor: '#1a1a2e',
     marginHorizontal: 16,
+    marginTop: 8,
     padding: 12,
     borderRadius: 12,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#ff6b6b33',
+    gap: 10,
   },
-  badCaserosToggleActive: {
-    backgroundColor: '#ff6b6b',
-  },
-  badCaserosText: {
-    color: '#ff6b6b',
-    fontWeight: '600',
-  },
-  badCaserosTextActive: {
-    color: '#0f0f1a',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-  },
-  searchInputContainer: {
-    flex: 1,
+  cityEmoji: { fontSize: 28 },
+  cityInfo: { flex: 1 },
+  cityName: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  citySubtext: { color: '#888', fontSize: 11 },
+  featuredTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    color: '#fff',
-    fontSize: 16,
-  },
-  searchButton: {
-    backgroundColor: '#ffd700',
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  zonasContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  zonaChip: {
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  zonaChipActive: {
-    backgroundColor: '#ffd700',
-  },
-  zonaChipText: {
-    color: '#888',
-    fontSize: 14,
-  },
-  zonaChipTextActive: {
-    color: '#0f0f1a',
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: '#888',
-    marginTop: 16,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  emptyText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    color: '#888',
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    backgroundColor: '#ffd700',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 24,
-    gap: 8,
-  },
-  emptyButtonText: {
-    color: '#0f0f1a',
-    fontWeight: 'bold',
-  },
-  listContent: {
-    padding: 16,
-  },
-  pisoCard: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  pisoImage: {
-    width: '100%',
-    height: 180,
-  },
-  pisoImagePlaceholder: {
-    width: '100%',
-    height: 180,
-    backgroundColor: '#2a2a3e',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noPhotoText: {
-    color: '#666',
-    fontSize: 12,
-    marginTop: 8,
-  },
-  shareButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ratingBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: '#ffd70020',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
+    gap: 4,
   },
-  ratingBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  pisoInfo: {
-    padding: 16,
-  },
-  pisoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  pisoZona: {
-    color: '#ffd700',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  priceBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  pisoDireccion: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 8,
-  },
-  pisoPrecio: {
-    color: '#4ade80',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  perMonth: {
-    color: '#888',
-    fontSize: 14,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stars: {
-    flexDirection: 'row',
-  },
-  ratingText: {
-    color: '#888',
-    fontSize: 14,
-  },
+  featuredText: { color: '#ffd700', fontSize: 11, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#1a1a2e', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#2a2a3e' },
+  modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  cityOption: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderBottomWidth: 1, borderBottomColor: '#2a2a3e' },
+  cityOptionActive: { backgroundColor: '#ffd70020' },
+  cityOptionFeatured: { borderLeftWidth: 3, borderLeftColor: '#ffd700' },
+  cityOptionEmoji: { fontSize: 24 },
+  cityOptionText: { flex: 1, color: '#888', fontSize: 16 },
+  cityOptionTextActive: { color: '#fff', fontWeight: '600' },
+  badCaserosToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#2a1a1a', marginHorizontal: 16, marginTop: 8, padding: 10, borderRadius: 10, gap: 8, borderWidth: 1, borderColor: '#ff6b6b33' },
+  badCaserosToggleActive: { backgroundColor: '#ff6b6b' },
+  badCaserosText: { color: '#ff6b6b', fontWeight: '600', fontSize: 13 },
+  badCaserosTextActive: { color: '#0f0f1a' },
+  searchContainer: { flexDirection: 'row', padding: 12, paddingBottom: 8, gap: 10 },
+  searchInputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a2e', borderRadius: 10, paddingHorizontal: 12, gap: 8 },
+  searchInput: { flex: 1, height: 42, color: '#fff', fontSize: 14 },
+  searchButton: { backgroundColor: '#ffd700', width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  zonasContainer: { paddingHorizontal: 12, marginBottom: 4 },
+  zonaChip: { backgroundColor: '#1a1a2e', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, marginRight: 8 },
+  zonaChipActive: { backgroundColor: '#ffd700' },
+  zonaChipText: { color: '#888', fontSize: 13 },
+  zonaChipTextActive: { color: '#0f0f1a', fontWeight: '600' },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyText: { color: '#fff', fontSize: 17, fontWeight: '600', marginTop: 16 },
+  emptySubtext: { color: '#888', fontSize: 13, marginTop: 6 },
+  emptyButton: { flexDirection: 'row', backgroundColor: '#ffd700', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, marginTop: 20, gap: 6 },
+  emptyButtonText: { color: '#0f0f1a', fontWeight: 'bold' },
+  listContent: { padding: 12 },
+  pisoCard: { backgroundColor: '#1a1a2e', borderRadius: 14, overflow: 'hidden', marginBottom: 14 },
+  pisoImage: { width: '100%', height: 160 },
+  pisoImagePlaceholder: { width: '100%', height: 160, backgroundColor: '#2a2a3e', alignItems: 'center', justifyContent: 'center' },
+  shareButton: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.6)', width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  ratingBadge: { position: 'absolute', top: 10, left: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+  ratingBadgeText: { fontSize: 11, fontWeight: 'bold' },
+  pisoInfo: { padding: 14 },
+  pisoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  pisoZona: { color: '#ffd700', fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
+  priceBadge: { fontSize: 11, fontWeight: '600' },
+  pisoDireccion: { color: '#fff', fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 6 },
+  pisoPrecio: { color: '#4ade80', fontSize: 22, fontWeight: 'bold' },
+  perMonth: { color: '#888', fontSize: 13 },
+  ratingContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stars: { flexDirection: 'row' },
+  ratingText: { color: '#888', fontSize: 12 },
 });
