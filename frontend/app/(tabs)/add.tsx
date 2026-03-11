@@ -22,7 +22,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { useAuth } from '../../src/context/AuthContext';
-import { WebView } from 'react-native-webview';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width, height } = Dimensions.get('window');
