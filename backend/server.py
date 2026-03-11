@@ -36,6 +36,19 @@ app = FastAPI(title="Casero Stars API")
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Granada coordinates for zones
+GRANADA_ZONES_COORDS = {
+    "Centro": {"lat": 37.1773, "lng": -3.5986},
+    "Realejo": {"lat": 37.1720, "lng": -3.5920},
+    "Albaicín": {"lat": 37.1810, "lng": -3.5920},
+    "Zaidín": {"lat": 37.1620, "lng": -3.6050},
+    "Camino de Ronda": {"lat": 37.1750, "lng": -3.6100},
+    "Facultades": {"lat": 37.1830, "lng": -3.6070},
+    "Cartuja": {"lat": 37.1920, "lng": -3.5950},
+    "Chana": {"lat": 37.1850, "lng": -3.6200},
+    "Beiro": {"lat": 37.1900, "lng": -3.6100},
+}
+
 # ==================== MODELS ====================
 
 # User Models
@@ -111,9 +124,34 @@ class PisoResponse(BaseModel):
     created_by: str
     created_by_name: str
     created_at: datetime
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 class PisoDetail(PisoResponse):
     valoraciones: List[RatingResponse]
+
+# Stats Models
+class ZoneStats(BaseModel):
+    zona: str
+    total_pisos: int
+    precio_medio: float
+    precio_min: float
+    precio_max: float
+    valoracion_media: float
+    lat: float
+    lng: float
+
+class GeneralStats(BaseModel):
+    total_pisos: int
+    total_valoraciones: int
+    total_usuarios: int
+    precio_medio_granada: float
+    zonas: List[ZoneStats]
+
+# Notification Models
+class NotificationSubscription(BaseModel):
+    push_token: str
+    zonas: List[str] = []
 
 # ==================== AUTH HELPERS ====================
 
@@ -227,6 +265,9 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 async def create_piso(piso_data: PisoCreate, current_user: dict = Depends(get_current_user)):
     piso_id = str(uuid.uuid4())
     
+    # Get coordinates for the zone
+    coords = GRANADA_ZONES_COORDS.get(piso_data.zona, {"lat": 37.1773, "lng": -3.5986})
+    
     piso_doc = {
         "id": piso_id,
         "direccion": piso_data.direccion,
@@ -234,6 +275,8 @@ async def create_piso(piso_data: PisoCreate, current_user: dict = Depends(get_cu
         "precio_mensual": piso_data.precio_mensual,
         "descripcion": piso_data.descripcion,
         "fotos": piso_data.fotos,
+        "lat": coords["lat"],
+        "lng": coords["lng"],
         "created_by": current_user["id"],
         "created_by_name": current_user["name"],
         "created_at": datetime.utcnow()
@@ -252,7 +295,9 @@ async def create_piso(piso_data: PisoCreate, current_user: dict = Depends(get_cu
         total_valoraciones=0,
         created_by=current_user["id"],
         created_by_name=current_user["name"],
-        created_at=piso_doc["created_at"]
+        created_at=piso_doc["created_at"],
+        lat=coords["lat"],
+        lng=coords["lng"]
     )
 
 @api_router.get("/pisos", response_model=List[PisoResponse])
@@ -288,7 +333,9 @@ async def get_pisos(zona: Optional[str] = None, min_rating: Optional[float] = No
             total_valoraciones=total,
             created_by=piso["created_by"],
             created_by_name=piso["created_by_name"],
-            created_at=piso["created_at"]
+            created_at=piso["created_at"],
+            lat=piso.get("lat"),
+            lng=piso.get("lng")
         ))
     
     # Sort by rating descending
@@ -341,7 +388,9 @@ async def get_piso(piso_id: str):
         created_by=piso["created_by"],
         created_by_name=piso["created_by_name"],
         created_at=piso["created_at"],
-        valoraciones=rating_responses
+        valoraciones=rating_responses,
+        lat=piso.get("lat"),
+        lng=piso.get("lng")
     )
 
 # ==================== VALORACION ROUTES ====================
@@ -393,12 +442,117 @@ async def create_valoracion(piso_id: str, rating_data: RatingCreate, current_use
         created_at=rating_doc["created_at"]
     )
 
+# ==================== STATS ROUTES ====================
+
+@api_router.get("/stats", response_model=GeneralStats)
+async def get_stats():
+    """Get general statistics and stats by zone"""
+    pisos = await db.pisos.find().to_list(1000)
+    valoraciones = await db.valoraciones.find().to_list(1000)
+    usuarios = await db.users.find().to_list(1000)
+    
+    # General stats
+    total_pisos = len(pisos)
+    total_valoraciones = len(valoraciones)
+    total_usuarios = len(usuarios)
+    
+    # Calculate average price
+    if pisos:
+        precio_medio_granada = sum(p["precio_mensual"] for p in pisos) / len(pisos)
+    else:
+        precio_medio_granada = 0
+    
+    # Stats by zone
+    zones_data = {}
+    for piso in pisos:
+        zona = piso["zona"]
+        if zona not in zones_data:
+            zones_data[zona] = {
+                "precios": [],
+                "piso_ids": []
+            }
+        zones_data[zona]["precios"].append(piso["precio_mensual"])
+        zones_data[zona]["piso_ids"].append(piso["id"])
+    
+    zone_stats = []
+    for zona, data in zones_data.items():
+        precios = data["precios"]
+        piso_ids = data["piso_ids"]
+        
+        # Calculate average rating for zone
+        zone_valoraciones = [v for v in valoraciones if v["piso_id"] in piso_ids]
+        if zone_valoraciones:
+            avg_rating = sum(
+                (v["estado_piso"] + v["calidad_precio"] + v["comportamiento_casero"] + 
+                 v["ubicacion"] + v["fotos_reales"]) / 5 for v in zone_valoraciones
+            ) / len(zone_valoraciones)
+        else:
+            avg_rating = 0
+        
+        coords = GRANADA_ZONES_COORDS.get(zona, {"lat": 37.1773, "lng": -3.5986})
+        
+        zone_stats.append(ZoneStats(
+            zona=zona,
+            total_pisos=len(precios),
+            precio_medio=round(sum(precios) / len(precios), 0),
+            precio_min=min(precios),
+            precio_max=max(precios),
+            valoracion_media=round(avg_rating, 1),
+            lat=coords["lat"],
+            lng=coords["lng"]
+        ))
+    
+    # Sort by average price
+    zone_stats.sort(key=lambda x: x.precio_medio)
+    
+    return GeneralStats(
+        total_pisos=total_pisos,
+        total_valoraciones=total_valoraciones,
+        total_usuarios=total_usuarios,
+        precio_medio_granada=round(precio_medio_granada, 0),
+        zonas=zone_stats
+    )
+
 @api_router.get("/zonas")
 async def get_zonas():
     """Get unique zones from all pisos"""
     pisos = await db.pisos.find().to_list(1000)
     zonas = list(set([p["zona"] for p in pisos]))
     return {"zonas": sorted(zonas)}
+
+@api_router.get("/zonas/coords")
+async def get_zonas_coords():
+    """Get all Granada zones with coordinates"""
+    return {"zonas": GRANADA_ZONES_COORDS}
+
+# ==================== NOTIFICATIONS ROUTES ====================
+
+@api_router.post("/notifications/subscribe")
+async def subscribe_notifications(subscription: NotificationSubscription, current_user: dict = Depends(get_current_user)):
+    """Subscribe to notifications for new pisos in specific zones"""
+    sub_doc = {
+        "user_id": current_user["id"],
+        "push_token": subscription.push_token,
+        "zonas": subscription.zonas,
+        "created_at": datetime.utcnow()
+    }
+    
+    # Upsert subscription
+    await db.notification_subscriptions.update_one(
+        {"user_id": current_user["id"]},
+        {"$set": sub_doc},
+        upsert=True
+    )
+    
+    return {"message": "Subscripción actualizada", "zonas": subscription.zonas}
+
+@api_router.get("/notifications/subscription")
+async def get_subscription(current_user: dict = Depends(get_current_user)):
+    """Get current notification subscription"""
+    sub = await db.notification_subscriptions.find_one({"user_id": current_user["id"]})
+    if sub:
+        return {"zonas": sub.get("zonas", []), "subscribed": True}
+    return {"zonas": [], "subscribed": False}
 
 @api_router.get("/")
 async def root():
