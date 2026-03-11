@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  Share,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,6 +72,22 @@ export default function PisoDetailScreen() {
     }
   };
 
+  const handleShare = async () => {
+    if (!piso) return;
+    
+    try {
+      const warning = piso.promedio_general < 3 ? '⚠️ ¡CUIDADO! ' : '';
+      const message = `${warning}Piso en ${piso.zona} - ${piso.promedio_general}⭐\n💰 ${piso.precio_mensual}€/mes\n📍 ${piso.direccion}\n\n¡Mira las valoraciones en Casero Stars! #CaseroStars`;
+      
+      await Share.share({
+        message,
+        title: 'Casero Stars',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
   const renderStars = (rating: number, size: number = 16) => {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
@@ -83,6 +101,21 @@ export default function PisoDetailScreen() {
       );
     }
     return stars;
+  };
+
+  const getRatingBadge = (rating: number) => {
+    if (rating === 0) return { text: 'Sin valorar', color: '#888', icon: 'help-circle' as const };
+    if (rating < 2) return { text: '🚨 PELIGRO - Evita este piso', color: '#ff4444', icon: 'warning' as const };
+    if (rating < 3) return { text: '⚠️ Ten cuidado', color: '#ff8c00', icon: 'alert-circle' as const };
+    if (rating < 4) return { text: '👍 Decente', color: '#4ecdc4', icon: 'thumbs-up' as const };
+    return { text: '✅ Muy recomendado', color: '#4ade80', icon: 'checkmark-circle' as const };
+  };
+
+  const getPriceBadge = (price: number) => {
+    if (price <= 300) return { text: '💚 Precio justo', color: '#4ade80', desc: 'Esto es lo que debería costar' };
+    if (price <= 450) return { text: '💛 Aceptable', color: '#ffd700', desc: 'Precio razonable para Granada' };
+    if (price <= 600) return { text: '🧡 Caro', color: '#ff8c00', desc: 'Precio elevado' };
+    return { text: '❤️‍🔥 Abusivo', color: '#ff4444', desc: 'Los estudiantes merecemos mejor' };
   };
 
   const hasUserRated = piso?.valoraciones.some((v) => v.user_id === user?.id);
@@ -102,6 +135,9 @@ export default function PisoDetailScreen() {
       </View>
     );
   }
+
+  const ratingBadge = getRatingBadge(piso.promedio_general);
+  const priceBadge = getPriceBadge(piso.precio_mensual);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -144,27 +180,54 @@ export default function PisoDetailScreen() {
             </>
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="home" size={64} color="#444" />
-              <Text style={styles.imagePlaceholderText}>Sin fotos</Text>
+              <Ionicons name="camera-outline" size={64} color="#444" />
+              <Text style={styles.imagePlaceholderText}>Sin fotos todavía</Text>
+              <Text style={styles.imagePlaceholderSubtext}>¿Has vivido aquí? ¡Sube fotos reales!</Text>
             </View>
           )}
+          
+          {/* Share Button */}
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
+            <Ionicons name="share-social" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
+          {/* Warning Banner if bad rating */}
+          {piso.promedio_general > 0 && piso.promedio_general < 3 && (
+            <View style={styles.warningBanner}>
+              <Ionicons name="warning" size={24} color="#ff4444" />
+              <Text style={styles.warningText}>
+                ⚠️ Este piso tiene malas valoraciones. Lee los comentarios antes de decidir.
+              </Text>
+            </View>
+          )}
+
           {/* Header Info */}
           <View style={styles.headerInfo}>
             <Text style={styles.zona}>{piso.zona}</Text>
             <Text style={styles.direccion}>{piso.direccion}</Text>
-            <Text style={styles.precio}>{piso.precio_mensual}€/mes</Text>
+            
+            {/* Price Section */}
+            <View style={styles.priceSection}>
+              <Text style={styles.precio}>{piso.precio_mensual}€<Text style={styles.perMonth}>/mes</Text></Text>
+              <View style={[styles.priceBadgeContainer, { backgroundColor: priceBadge.color + '20' }]}>
+                <Text style={[styles.priceBadgeText, { color: priceBadge.color }]}>{priceBadge.text}</Text>
+              </View>
+            </View>
+            <Text style={[styles.priceDesc, { color: priceBadge.color }]}>{priceBadge.desc}</Text>
           </View>
 
           {/* Rating Summary */}
-          <View style={styles.ratingSummary}>
+          <View style={[styles.ratingSummary, { borderColor: ratingBadge.color + '33' }]}>
             <View style={styles.ratingMain}>
               <Text style={styles.ratingNumber}>{piso.promedio_general.toFixed(1)}</Text>
-              <View style={styles.ratingStars}>{renderStars(piso.promedio_general, 24)}</View>
+              <View style={styles.ratingStars}>{renderStars(piso.promedio_general, 28)}</View>
+              <Text style={[styles.ratingBadgeText, { color: ratingBadge.color }]}>
+                {ratingBadge.text}
+              </Text>
               <Text style={styles.ratingCount}>
-                {piso.total_valoraciones} valoracion{piso.total_valoraciones !== 1 ? 'es' : ''}
+                {piso.total_valoraciones} valoracion{piso.total_valoraciones !== 1 ? 'es' : ''} de estudiantes
               </Text>
             </View>
           </View>
@@ -172,7 +235,7 @@ export default function PisoDetailScreen() {
           {/* Description */}
           {piso.descripcion && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Descripción</Text>
+              <Text style={styles.sectionTitle}>📝 Descripción</Text>
               <Text style={styles.description}>{piso.descripcion}</Text>
             </View>
           )}
@@ -184,28 +247,34 @@ export default function PisoDetailScreen() {
               onPress={() => router.push(`/piso/valorar/${piso.id}`)}
             >
               <Ionicons name="star" size={24} color="#0f0f1a" />
-              <Text style={styles.rateButtonText}>Valorar este piso</Text>
+              <Text style={styles.rateButtonText}>¡Valora este piso!</Text>
             </TouchableOpacity>
           )}
 
           {hasUserRated && (
             <View style={styles.alreadyRated}>
               <Ionicons name="checkmark-circle" size={24} color="#4ade80" />
-              <Text style={styles.alreadyRatedText}>Ya has valorado este piso</Text>
+              <Text style={styles.alreadyRatedText}>Ya has valorado este piso ¡Gracias!</Text>
             </View>
           )}
 
           {/* Valoraciones */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Valoraciones</Text>
+            <Text style={styles.sectionTitle}>💬 Opiniones de estudiantes</Text>
             {piso.valoraciones.length === 0 ? (
-              <Text style={styles.noRatings}>Aún no hay valoraciones</Text>
+              <View style={styles.noRatingsContainer}>
+                <Ionicons name="chatbubble-ellipses-outline" size={48} color="#444" />
+                <Text style={styles.noRatings}>Aún no hay valoraciones</Text>
+                <Text style={styles.noRatingsSubtext}>¡Sé el primero en compartir tu experiencia!</Text>
+              </View>
             ) : (
               piso.valoraciones.map((valoracion) => (
                 <View key={valoracion.id} style={styles.valoracionCard}>
                   <View style={styles.valoracionHeader}>
                     <View style={styles.valoracionUser}>
-                      <Ionicons name="person-circle" size={32} color="#888" />
+                      <View style={styles.userAvatar}>
+                        <Ionicons name="school" size={20} color="#ffd700" />
+                      </View>
                       <Text style={styles.valoracionUserName}>{valoracion.user_name}</Text>
                     </View>
                     <View style={styles.valoracionStars}>
@@ -218,29 +287,31 @@ export default function PisoDetailScreen() {
 
                   <View style={styles.valoracionDetails}>
                     <View style={styles.valoracionItem}>
-                      <Text style={styles.valoracionLabel}>Estado del piso</Text>
-                      <View style={styles.miniStars}>{renderStars(valoracion.estado_piso, 12)}</View>
+                      <Text style={styles.valoracionLabel}>🏠 Estado del piso</Text>
+                      <View style={styles.miniStars}>{renderStars(valoracion.estado_piso, 14)}</View>
                     </View>
                     <View style={styles.valoracionItem}>
-                      <Text style={styles.valoracionLabel}>Calidad/Precio</Text>
-                      <View style={styles.miniStars}>{renderStars(valoracion.calidad_precio, 12)}</View>
+                      <Text style={styles.valoracionLabel}>💰 Calidad/Precio</Text>
+                      <View style={styles.miniStars}>{renderStars(valoracion.calidad_precio, 14)}</View>
                     </View>
                     <View style={styles.valoracionItem}>
-                      <Text style={styles.valoracionLabel}>Casero</Text>
-                      <View style={styles.miniStars}>{renderStars(valoracion.comportamiento_casero, 12)}</View>
+                      <Text style={styles.valoracionLabel}>👤 El casero</Text>
+                      <View style={styles.miniStars}>{renderStars(valoracion.comportamiento_casero, 14)}</View>
                     </View>
                     <View style={styles.valoracionItem}>
-                      <Text style={styles.valoracionLabel}>Ubicación</Text>
-                      <View style={styles.miniStars}>{renderStars(valoracion.ubicacion, 12)}</View>
+                      <Text style={styles.valoracionLabel}>📍 Ubicación</Text>
+                      <View style={styles.miniStars}>{renderStars(valoracion.ubicacion, 14)}</View>
                     </View>
                     <View style={styles.valoracionItem}>
-                      <Text style={styles.valoracionLabel}>Fotos reales</Text>
-                      <View style={styles.miniStars}>{renderStars(valoracion.fotos_reales, 12)}</View>
+                      <Text style={styles.valoracionLabel}>📸 Fotos reales</Text>
+                      <View style={styles.miniStars}>{renderStars(valoracion.fotos_reales, 14)}</View>
                     </View>
                   </View>
 
                   {valoracion.comentario && (
-                    <Text style={styles.valoracionComentario}>{valoracion.comentario}</Text>
+                    <View style={styles.comentarioContainer}>
+                      <Text style={styles.valoracionComentario}>"{valoracion.comentario}"</Text>
+                    </View>
                   )}
                 </View>
               ))
@@ -288,7 +359,24 @@ const styles = StyleSheet.create({
   },
   imagePlaceholderText: {
     color: '#666',
+    fontSize: 16,
     marginTop: 8,
+  },
+  imagePlaceholderSubtext: {
+    color: '#444',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  shareButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pagination: {
     flexDirection: 'row',
@@ -309,6 +397,22 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
   },
+  warningBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#2a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#ff444433',
+  },
+  warningText: {
+    flex: 1,
+    color: '#ff6b6b',
+    fontSize: 14,
+  },
   headerInfo: {
     marginBottom: 24,
   },
@@ -323,30 +427,60 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  priceSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   precio: {
     color: '#4ade80',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
+  },
+  perMonth: {
+    color: '#888',
+    fontSize: 16,
+    fontWeight: 'normal',
+  },
+  priceBadgeContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  priceBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  priceDesc: {
+    fontSize: 13,
+    marginTop: 4,
   },
   ratingSummary: {
     backgroundColor: '#1a1a2e',
     borderRadius: 16,
     padding: 24,
     marginBottom: 24,
+    borderWidth: 1,
   },
   ratingMain: {
     alignItems: 'center',
   },
   ratingNumber: {
     color: '#fff',
-    fontSize: 48,
+    fontSize: 56,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   ratingStars: {
     flexDirection: 'row',
+    marginBottom: 12,
+    gap: 4,
+  },
+  ratingBadgeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
   ratingCount: {
@@ -397,11 +531,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  noRatingsContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
   noRatings: {
     color: '#888',
     fontSize: 16,
-    textAlign: 'center',
-    paddingVertical: 24,
+    marginTop: 12,
+  },
+  noRatingsSubtext: {
+    color: '#666',
+    fontSize: 14,
+    marginTop: 4,
   },
   valoracionCard: {
     backgroundColor: '#1a1a2e',
@@ -419,6 +561,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  userAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#2a2a3e',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   valoracionUserName: {
     color: '#fff',
@@ -451,13 +601,16 @@ const styles = StyleSheet.create({
   miniStars: {
     flexDirection: 'row',
   },
+  comentarioContainer: {
+    backgroundColor: '#0f0f1a',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
   valoracionComentario: {
     color: '#ccc',
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a3e',
+    fontStyle: 'italic',
   },
 });
