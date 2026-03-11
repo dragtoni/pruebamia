@@ -1,22 +1,36 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Casero Stars",
+    "slug": "casero-stars",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "caserostars",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.caserostars.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Sube fotos de tu piso para compartir con otros",
+        "NSPhotoLibraryUsageDescription": "Selecciona fotos de tu galería para mostrar tu piso"
+      }
     },
     "android": {
+      "package": "com.caserostars.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#0f0f1a"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,13 +45,18 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "backgroundColor": "#0f0f1a"
         }
       ],
       "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "casero-stars"
+      }
     }
   }
 }
