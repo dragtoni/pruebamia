@@ -8,11 +8,17 @@ import {
   ActivityIndicator,
   Platform,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
 
 const { width, height } = Dimensions.get('window');
+
+// Only import WebView on native platforms
+let WebView: any = null;
+if (Platform.OS !== 'web') {
+  WebView = require('react-native-webview').WebView;
+}
 
 interface LocationPickerProps {
   initialLat?: number;
@@ -27,6 +33,20 @@ interface LocationPickerProps {
   onClose: () => void;
 }
 
+// Popular zones in Granada with coordinates
+const GRANADA_ZONES = [
+  { name: 'Centro', lat: 37.1760, lng: -3.5980 },
+  { name: 'Realejo', lat: 37.1720, lng: -3.5930 },
+  { name: 'Albaicín', lat: 37.1810, lng: -3.5920 },
+  { name: 'Zaidín', lat: 37.1630, lng: -3.6000 },
+  { name: 'Camino de Ronda', lat: 37.1730, lng: -3.6100 },
+  { name: 'Facultades', lat: 37.1820, lng: -3.6080 },
+  { name: 'Cartuja', lat: 37.1900, lng: -3.6050 },
+  { name: 'Chana', lat: 37.1850, lng: -3.6200 },
+  { name: 'Plaza de Toros', lat: 37.1780, lng: -3.6150 },
+  { name: 'Genil', lat: 37.1650, lng: -3.5850 },
+];
+
 export default function LocationPicker({
   initialLat = 37.1773,
   initialLng = -3.5986,
@@ -34,14 +54,16 @@ export default function LocationPicker({
   onLocationSelect,
   onClose,
 }: LocationPickerProps) {
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<any>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState('');
   const [selectedCoords, setSelectedCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // HTML for the OpenStreetMap with Leaflet
-  const mapHTML = `
+  const getMapHTML = () => `
     <!DOCTYPE html>
     <html>
     <head>
@@ -50,15 +72,16 @@ export default function LocationPicker({
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; width: 100%; }
+        html, body { height: 100%; width: 100%; overflow: hidden; }
         #map { height: 100%; width: 100%; }
         .leaflet-control-attribution { display: none; }
         .custom-marker {
           background: #ffd700;
           border: 3px solid #0f0f1a;
           border-radius: 50%;
-          width: 20px;
-          height: 20px;
+          width: 24px;
+          height: 24px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
       </style>
     </head>
@@ -68,7 +91,7 @@ export default function LocationPicker({
         var map = L.map('map', {
           zoomControl: true,
           attributionControl: false
-        }).setView([${initialLat}, ${initialLng}], 14);
+        }).setView([${initialLat}, ${initialLng}], 15);
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
@@ -77,39 +100,39 @@ export default function LocationPicker({
         var marker = null;
         var customIcon = L.divIcon({
           className: 'custom-marker',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
         });
         
-        // Handle map clicks
+        function sendMessage(data) {
+          try {
+            if (window.ReactNativeWebView) {
+              window.ReactNativeWebView.postMessage(JSON.stringify(data));
+            } else {
+              window.parent.postMessage(JSON.stringify(data), '*');
+            }
+          } catch(e) {
+            console.error('Error sending message:', e);
+          }
+        }
+        
         map.on('click', function(e) {
           var lat = e.latlng.lat;
           var lng = e.latlng.lng;
           
-          // Remove old marker
           if (marker) {
             map.removeLayer(marker);
           }
           
-          // Add new marker
           marker = L.marker([lat, lng], {icon: customIcon}).addTo(map);
           
-          // Send coordinates to React Native
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'click',
+          sendMessage({
+            type: 'mapClick',
             lat: lat,
             lng: lng
-          }));
+          });
         });
         
-        // Function to search location
-        function searchLocation(query) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'searching'
-          }));
-        }
-        
-        // Function to move map to location
         function moveToLocation(lat, lng) {
           map.setView([lat, lng], 17);
           if (marker) {
@@ -118,7 +141,6 @@ export default function LocationPicker({
           marker = L.marker([lat, lng], {icon: customIcon}).addTo(map);
         }
         
-        // Listen for messages from React Native
         window.addEventListener('message', function(event) {
           try {
             var data = JSON.parse(event.data);
@@ -127,64 +149,92 @@ export default function LocationPicker({
             }
           } catch(e) {}
         });
+
+        sendMessage({ type: 'mapReady' });
       </script>
     </body>
     </html>
   `;
 
-  // Handle messages from WebView
-  const handleMessage = async (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      
-      if (data.type === 'click') {
-        setSelectedCoords({ lat: data.lat, lng: data.lng });
-        // Reverse geocode to get address
-        fetchAddress(data.lat, data.lng);
-      }
-    } catch (e) {
-      console.error('Error parsing message:', e);
-    }
-  };
+  // Listen for messages from iframe (web only)
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleMessage = (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'mapClick') {
+            handleMapClick(data.lat, data.lng);
+          } else if (data.type === 'mapReady') {
+            setMapLoaded(true);
+          }
+        } catch (e) {}
+      };
 
-  // Fetch address from coordinates using Nominatim
-  const fetchAddress = async (lat: number, lng: number) => {
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    }
+  }, []);
+
+  // Handle map click - get address from coordinates
+  const handleMapClick = async (lat: number, lng: number) => {
+    setSelectedCoords({ lat, lng });
+    setSearching(true);
+    
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=es`,
         {
           headers: {
-            'Accept-Language': 'es',
             'User-Agent': 'CaseroStars/1.0'
           }
         }
       );
       const data = await response.json();
       
-      if (data.display_name) {
-        // Extract relevant parts of the address
-        const address = data.address;
+      if (data && data.address) {
+        const addr = data.address;
         let formattedAddress = '';
         
-        if (address.road) {
-          formattedAddress = address.road;
-          if (address.house_number) {
-            formattedAddress += ' ' + address.house_number;
+        if (addr.road) {
+          formattedAddress = addr.road;
+          if (addr.house_number) {
+            formattedAddress += ' ' + addr.house_number;
           }
+        } else if (addr.pedestrian) {
+          formattedAddress = addr.pedestrian;
+        } else if (addr.neighbourhood) {
+          formattedAddress = addr.neighbourhood;
         } else if (data.display_name) {
-          // Take first part of display name
           formattedAddress = data.display_name.split(',')[0];
         }
         
-        setSelectedAddress(formattedAddress);
+        setSelectedAddress(formattedAddress || `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+      } else {
+        setSelectedAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
       }
     } catch (error) {
-      console.error('Error fetching address:', error);
+      console.error('Reverse geocoding error:', error);
       setSelectedAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    } finally {
+      setSearching(false);
     }
   };
 
-  // Search for a location
+  // Handle WebView messages (mobile only)
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'mapClick') {
+        handleMapClick(data.lat, data.lng);
+      } else if (data.type === 'mapReady') {
+        setMapLoaded(true);
+      }
+    } catch (e) {
+      console.error('Error parsing WebView message:', e);
+    }
+  };
+
+  // Search for address
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
@@ -192,10 +242,9 @@ export default function LocationPicker({
     try {
       const query = encodeURIComponent(`${searchQuery}, ${cityName}, España`);
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&accept-language=es`,
         {
           headers: {
-            'Accept-Language': 'es',
             'User-Agent': 'CaseroStars/1.0'
           }
         }
@@ -211,18 +260,35 @@ export default function LocationPicker({
         setSelectedAddress(display_name.split(',')[0]);
         
         // Move map to location
-        webViewRef.current?.postMessage(JSON.stringify({
-          action: 'moveTo',
-          lat: latNum,
-          lng: lngNum
-        }));
+        const message = JSON.stringify({ action: 'moveTo', lat: latNum, lng: lngNum });
+        
+        if (Platform.OS === 'web' && iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage(message, '*');
+        } else if (webViewRef.current) {
+          webViewRef.current.postMessage(message);
+        }
       } else {
-        alert('No se encontró la dirección');
+        alert('No se encontró la dirección. Intenta con otra búsqueda.');
       }
     } catch (error) {
       console.error('Search error:', error);
+      alert('Error al buscar. Inténtalo de nuevo.');
     } finally {
       setSearching(false);
+    }
+  };
+
+  // Quick select a zone
+  const handleQuickSelectZone = (zone: typeof GRANADA_ZONES[0]) => {
+    setSelectedCoords({ lat: zone.lat, lng: zone.lng });
+    setSelectedAddress(zone.name);
+    
+    const message = JSON.stringify({ action: 'moveTo', lat: zone.lat, lng: zone.lng });
+    
+    if (Platform.OS === 'web' && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(message, '*');
+    } else if (webViewRef.current) {
+      webViewRef.current.postMessage(message);
     }
   };
 
@@ -233,7 +299,7 @@ export default function LocationPicker({
         lat: selectedCoords.lat,
         lng: selectedCoords.lng,
         address: selectedAddress,
-        zona: '', // Will be determined by the parent
+        zona: '',
       });
     }
   };
@@ -245,7 +311,7 @@ export default function LocationPicker({
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <Ionicons name="close" size={28} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.title}>Selecciona ubicación</Text>
+        <Text style={styles.title}>📍 Selecciona ubicación</Text>
         <View style={{ width: 28 }} />
       </View>
 
@@ -255,7 +321,7 @@ export default function LocationPicker({
           <Ionicons name="search" size={20} color="#888" />
           <TextInput
             style={styles.searchInput}
-            placeholder={`Buscar en ${cityName}...`}
+            placeholder={`Buscar dirección en ${cityName}...`}
             placeholderTextColor="#666"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -281,11 +347,35 @@ export default function LocationPicker({
         </TouchableOpacity>
       </View>
 
+      {/* Quick zone selector */}
+      <View style={styles.quickZonesContainer}>
+        <Text style={styles.quickZonesLabel}>Zonas populares:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickZonesScroll}>
+          {GRANADA_ZONES.map((zone) => (
+            <TouchableOpacity
+              key={zone.name}
+              style={[
+                styles.quickZoneChip,
+                selectedAddress === zone.name && styles.quickZoneChipActive
+              ]}
+              onPress={() => handleQuickSelectZone(zone)}
+            >
+              <Text style={[
+                styles.quickZoneChipText,
+                selectedAddress === zone.name && styles.quickZoneChipTextActive
+              ]}>
+                {zone.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Instructions */}
       <View style={styles.instructions}>
-        <Ionicons name="finger-print" size={16} color="#4ecdc4" />
+        <Ionicons name="hand-left" size={16} color="#4ecdc4" />
         <Text style={styles.instructionsText}>
-          Toca en el mapa para seleccionar la ubicación exacta
+          Pincha en el mapa para seleccionar la ubicación exacta
         </Text>
       </View>
 
@@ -293,16 +383,22 @@ export default function LocationPicker({
       <View style={styles.mapContainer}>
         {Platform.OS === 'web' ? (
           <iframe
-            srcDoc={mapHTML}
-            style={{ width: '100%', height: '100%', border: 'none' }}
+            ref={iframeRef as any}
+            srcDoc={getMapHTML()}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              border: 'none',
+              borderRadius: 12,
+            }}
             title="map"
           />
-        ) : (
+        ) : WebView ? (
           <WebView
             ref={webViewRef}
-            source={{ html: mapHTML }}
+            source={{ html: getMapHTML() }}
             style={styles.map}
-            onMessage={handleMessage}
+            onMessage={handleWebViewMessage}
             javaScriptEnabled={true}
             domStorageEnabled={true}
             startInLoadingState={true}
@@ -313,28 +409,48 @@ export default function LocationPicker({
               </View>
             )}
           />
+        ) : (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Mapa no disponible</Text>
+          </View>
         )}
       </View>
 
-      {/* Selected location */}
-      {selectedAddress && (
-        <View style={styles.selectedContainer}>
-          <View style={styles.selectedInfo}>
-            <Ionicons name="location" size={24} color="#ffd700" />
-            <View style={styles.selectedTextContainer}>
-              <Text style={styles.selectedLabel}>Ubicación seleccionada:</Text>
-              <Text style={styles.selectedAddress} numberOfLines={2}>
-                {selectedAddress}
-              </Text>
+      {/* Selected location panel */}
+      <View style={styles.selectedContainer}>
+        {selectedAddress ? (
+          <>
+            <View style={styles.selectedInfo}>
+              <View style={styles.selectedIcon}>
+                <Ionicons name="location" size={28} color="#ffd700" />
+              </View>
+              <View style={styles.selectedTextContainer}>
+                <Text style={styles.selectedLabel}>Ubicación seleccionada:</Text>
+                <Text style={styles.selectedAddress} numberOfLines={2}>
+                  {selectedAddress}
+                </Text>
+                {selectedCoords && (
+                  <Text style={styles.selectedCoords}>
+                    {selectedCoords.lat.toFixed(5)}, {selectedCoords.lng.toFixed(5)}
+                  </Text>
+                )}
+              </View>
             </View>
+            
+            <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+              <Ionicons name="checkmark-circle" size={24} color="#0f0f1a" />
+              <Text style={styles.confirmButtonText}>Usar esta dirección</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={styles.emptySelection}>
+            <Ionicons name="location-outline" size={32} color="#666" />
+            <Text style={styles.emptySelectionText}>
+              Busca una dirección o pincha en el mapa
+            </Text>
           </View>
-          
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-            <Ionicons name="checkmark" size={22} color="#0f0f1a" />
-            <Text style={styles.confirmButtonText}>Usar esta dirección</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
     </View>
   );
 }
@@ -390,6 +506,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  quickZonesContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  quickZonesLabel: {
+    color: '#888',
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  quickZonesScroll: {
+    flexGrow: 0,
+  },
+  quickZoneChip: {
+    backgroundColor: '#1a1a2e',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#2a2a3e',
+  },
+  quickZoneChipActive: {
+    backgroundColor: '#ffd700',
+    borderColor: '#ffd700',
+  },
+  quickZoneChipText: {
+    color: '#888',
+    fontSize: 13,
+  },
+  quickZoneChipTextActive: {
+    color: '#0f0f1a',
+    fontWeight: '600',
+  },
   instructions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -402,10 +551,11 @@ const styles = StyleSheet.create({
   instructionsText: {
     color: '#4ecdc4',
     fontSize: 13,
+    fontWeight: '500',
   },
   mapContainer: {
     flex: 1,
-    margin: 16,
+    margin: 12,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#1a1a2e',
@@ -432,12 +582,21 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
-    gap: 12,
+    minHeight: 120,
   },
   selectedInfo: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
+    marginBottom: 12,
+  },
+  selectedIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2a2a3e',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   selectedTextContainer: {
     flex: 1,
@@ -449,8 +608,13 @@ const styles = StyleSheet.create({
   },
   selectedAddress: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
+  },
+  selectedCoords: {
+    color: '#666',
+    fontSize: 11,
+    marginTop: 4,
   },
   confirmButton: {
     flexDirection: 'row',
@@ -465,5 +629,16 @@ const styles = StyleSheet.create({
     color: '#0f0f1a',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  emptySelection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  emptySelectionText: {
+    color: '#666',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
