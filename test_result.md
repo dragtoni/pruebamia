@@ -314,16 +314,13 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "User Registration API"
-    - "User Login API"
-    - "Create Piso API"
-    - "List Pisos API"
-    - "Create Valoracion API"
+  current_focus: []
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
     message: "Initial implementation complete. Please test all backend APIs: registration, login, create piso, list pisos, get piso detail, create valoracion, get zonas. All endpoints require /api prefix."
+  - agent: "testing"
+    message: "✅ ALL BACKEND APIS TESTED SUCCESSFULLY! Complete flow tested: User registration → Login → Create piso → List pisos (with zona filter) → Get piso detail → Create valoracion → Get zonas. All 8 endpoints working perfectly with 100% success rate. Authentication, data persistence, rating calculations, and filtering all functioning correctly. Backend is production-ready."
