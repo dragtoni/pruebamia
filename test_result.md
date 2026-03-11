@@ -107,87 +107,108 @@ user_problem_statement: "App para valorar alquileres con estrellas. Los usuarios
 backend:
   - task: "User Registration API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented POST /api/auth/register with email, password, name, user_type (inquilino/casero)"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: User registration working perfectly. Successfully registered user 'María García' with email 'maria.garcia@gmail.com' and received JWT token. API returns proper user data structure."
 
   - task: "User Login API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented POST /api/auth/login with JWT token generation"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: User login working perfectly. Successfully authenticated with email/password and received valid JWT token with user data."
 
   - task: "Create Piso API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented POST /api/pisos with direccion, zona, precio_mensual, descripcion, fotos (base64)"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Create piso API working perfectly. Successfully created piso with realistic Spanish data (Calle Gran Vía 45, Centro, €850/month). Requires authentication and returns proper piso ID."
 
   - task: "List Pisos API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented GET /api/pisos with optional zona filter and rating calculation"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: List pisos API working perfectly. Successfully retrieved pisos list and zona filtering works correctly (tested with 'Centro' filter). Returns proper array with rating calculations."
 
   - task: "Get Piso Detail API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented GET /api/pisos/{id} with all valoraciones"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Get piso detail API working perfectly. Successfully retrieved detailed piso information including valoraciones array. Returns complete piso data structure."
 
   - task: "Create Valoracion API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented POST /api/pisos/{id}/valoraciones with 5 rating categories"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Create valoracion API working perfectly. Successfully created rating with all 5 categories (estado_piso: 4, calidad_precio: 3, comportamiento_casero: 5, ubicacion: 4, fotos_reales: 3). Calculated average: 3.8/5. Requires authentication."
 
   - task: "Get Zonas API"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implemented GET /api/zonas to get unique zones"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Get zonas API working perfectly. Successfully retrieved unique zones array. Returns proper JSON structure with 'zonas' field containing sorted zone names."
 
 frontend:
   - task: "Landing Page"
