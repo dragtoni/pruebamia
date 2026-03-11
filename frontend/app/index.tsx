@@ -29,8 +29,8 @@ export default function Index() {
         <View style={styles.heroSection}>
           <Ionicons name="star" size={70} color="#ffd700" />
           <Text style={styles.title}>Casero Stars</Text>
-          <Text style={styles.tagline}>¡Basta de abusos!</Text>
-          <Text style={styles.subtitle}>Valora alquileres en toda España</Text>
+          <Text style={styles.tagline}>Tu guía de alquileres</Text>
+          <Text style={styles.subtitle}>Opiniones reales de inquilinos en España</Text>
         </View>
 
         {/* Spain Map Banner */}
@@ -42,7 +42,7 @@ export default function Index() {
           </View>
           <View style={styles.granadaHighlight}>
             <Ionicons name="star" size={16} color="#ffd700" />
-            <Text style={styles.granadaText}>Granada destacada</Text>
+            <Text style={styles.granadaText}>Granada</Text>
           </View>
         </View>
 
@@ -61,9 +61,9 @@ export default function Index() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Ionicons name="shield-checkmark" size={24} color="#ffd700" />
-            <Text style={styles.statNumber}>300€</Text>
-            <Text style={styles.statLabel}>Objetivo</Text>
+            <Ionicons name="star" size={24} color="#ffd700" />
+            <Text style={styles.statNumber}>5⭐</Text>
+            <Text style={styles.statLabel}>Valoraciones</Text>
           </View>
         </View>
 
@@ -98,11 +98,11 @@ export default function Index() {
           </View>
         </View>
 
-        {/* Problem Statement */}
-        <View style={styles.problemSection}>
-          <Text style={styles.problemEmoji}>😤</Text>
-          <Text style={styles.problemText}>¿Cansado de caseros abusivos?</Text>
-          <Text style={styles.problemSubtext}>Fotos falsas, precios inflados, fianzas que no devuelven...</Text>
+        {/* Value Proposition */}
+        <View style={styles.valueSection}>
+          <Text style={styles.valueEmoji}>💡</Text>
+          <Text style={styles.valueText}>¿Buscas piso?</Text>
+          <Text style={styles.valueSubtext}>Consulta opiniones de otros inquilinos antes de decidir</Text>
         </View>
 
         {/* Features */}
@@ -111,19 +111,19 @@ export default function Index() {
             <View style={styles.featureIcon}>
               <Ionicons name="camera" size={18} color="#ffd700" />
             </View>
-            <Text style={styles.featureText}>Fotos REALES verificadas</Text>
+            <Text style={styles.featureText}>Fotos reales de inquilinos</Text>
           </View>
           <View style={styles.featureItem}>
             <View style={styles.featureIcon}>
               <Ionicons name="star" size={18} color="#ffd700" />
             </View>
-            <Text style={styles.featureText}>Valora al casero sin miedo</Text>
+            <Text style={styles.featureText}>Valoraciones honestas</Text>
           </View>
           <View style={styles.featureItem}>
             <View style={styles.featureIcon}>
-              <Ionicons name="trending-down" size={18} color="#ff6b6b" />
+              <Ionicons name="chatbubbles" size={18} color="#ffd700" />
             </View>
-            <Text style={styles.featureText}>Ranking de PEORES caseros</Text>
+            <Text style={styles.featureText}>Experiencias de la comunidad</Text>
           </View>
         </View>
 
@@ -133,8 +133,8 @@ export default function Index() {
             style={styles.primaryButton}
             onPress={() => router.push('/auth/register')}
           >
-            <Ionicons name="rocket" size={22} color="#0f0f1a" />
-            <Text style={styles.primaryButtonText}>¡Únete a la revolución!</Text>
+            <Ionicons name="person-add" size={22} color="#0f0f1a" />
+            <Text style={styles.primaryButtonText}>Crear cuenta gratis</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -146,7 +146,7 @@ export default function Index() {
         </View>
 
         {/* Social Proof */}
-        <Text style={styles.socialProof}>🔥 Hecho por estudiantes, para estudiantes 🔥</Text>
+        <Text style={styles.socialProof}>Hecho por estudiantes, para estudiantes</Text>
       </View>
     </ScrollView>
   );
@@ -178,9 +178,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   tagline: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#ff6b6b',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffd700',
     marginTop: 4,
   },
   subtitle: {
@@ -191,12 +191,12 @@ const styles = StyleSheet.create({
   spainBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a2a1a',
+    backgroundColor: '#1a2a2a',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#4ade8033',
+    borderColor: '#4ecdc433',
   },
   spainEmoji: {
     fontSize: 28,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   spainTitle: {
-    color: '#4ade80',
+    color: '#4ecdc4',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -292,27 +292,25 @@ const styles = StyleSheet.create({
     color: '#ffd700',
     fontWeight: '600',
   },
-  problemSection: {
-    backgroundColor: '#2a1a1a',
+  valueSection: {
+    backgroundColor: '#1a1a2e',
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ff6b6b33',
   },
-  problemEmoji: {
+  valueEmoji: {
     fontSize: 28,
     marginBottom: 6,
   },
-  problemText: {
-    color: '#ff6b6b',
+  valueText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  problemSubtext: {
-    color: '#999',
+  valueSubtext: {
+    color: '#888',
     fontSize: 12,
     textAlign: 'center',
     marginTop: 4,
@@ -369,7 +367,7 @@ const styles = StyleSheet.create({
     color: '#ffd700',
   },
   socialProof: {
-    color: '#888',
+    color: '#666',
     fontSize: 11,
     textAlign: 'center',
     marginTop: 14,

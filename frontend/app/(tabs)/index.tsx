@@ -48,7 +48,7 @@ export default function ExploreScreen() {
   const [searchZona, setSearchZona] = useState('');
   const [zonas, setZonas] = useState<string[]>([]);
   const [ciudades, setCiudades] = useState<Ciudad[]>([]);
-  const [showBadCaseros, setShowBadCaseros] = useState(false);
+  const [sortByLowest, setSortByLowest] = useState(false);
   const [showCityModal, setShowCityModal] = useState(false);
 
   const fetchPisos = useCallback(async (zona?: string) => {
@@ -58,7 +58,7 @@ export default function ExploreScreen() {
       const response = await axios.get(`${API_URL}/api/pisos`, { params });
       let data = response.data;
       
-      if (showBadCaseros) {
+      if (sortByLowest) {
         data = data.sort((a: Piso, b: Piso) => a.promedio_general - b.promedio_general);
       }
       
@@ -69,7 +69,7 @@ export default function ExploreScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [showBadCaseros, selectedCity]);
+  }, [sortByLowest, selectedCity]);
 
   const fetchZonas = async () => {
     try {
@@ -112,10 +112,7 @@ export default function ExploreScreen() {
 
   const handleShare = async (piso: Piso) => {
     try {
-      const message = piso.promedio_general < 3 
-        ? `⚠️ ¡CUIDADO! Piso en ${piso.ciudad} (${piso.zona}) con ${piso.promedio_general}⭐ - ${piso.precio_mensual}€/mes. ¡Mira las valoraciones en Casero Stars!`
-        : `🏠 Piso en ${piso.ciudad} (${piso.zona}) - ${piso.promedio_general}⭐ - ${piso.precio_mensual}€/mes. ¡Valorado en Casero Stars!`;
-      
+      const message = `🏠 Piso en ${piso.ciudad} (${piso.zona}) - ${piso.promedio_general}⭐ - ${piso.precio_mensual}€/mes. Valorado en Casero Stars`;
       await Share.share({ message, title: 'Casero Stars' });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -139,17 +136,17 @@ export default function ExploreScreen() {
 
   const getRatingBadge = (rating: number) => {
     if (rating === 0) return { text: 'Sin valorar', color: '#888', bg: '#1a1a2e' };
-    if (rating < 2) return { text: '🚨 PELIGRO', color: '#ff4444', bg: '#2a1a1a' };
-    if (rating < 3) return { text: '⚠️ Cuidado', color: '#ff8c00', bg: '#2a2a1a' };
-    if (rating < 4) return { text: '👍 Decente', color: '#4ecdc4', bg: '#1a2a2a' };
-    return { text: '✅ Recomendado', color: '#4ade80', bg: '#1a2a1a' };
+    if (rating < 2) return { text: 'Mejorable', color: '#ff8c00', bg: '#2a2a1a' };
+    if (rating < 3) return { text: 'Regular', color: '#ffd700', bg: '#2a2a1a' };
+    if (rating < 4) return { text: 'Bueno', color: '#4ecdc4', bg: '#1a2a2a' };
+    return { text: 'Excelente', color: '#4ade80', bg: '#1a2a1a' };
   };
 
   const getPriceBadge = (price: number) => {
-    if (price <= 300) return { text: '💚 Justo', color: '#4ade80' };
-    if (price <= 450) return { text: '💛 OK', color: '#ffd700' };
-    if (price <= 600) return { text: '🧡 Caro', color: '#ff8c00' };
-    return { text: '❤️‍🔥 Abusivo', color: '#ff4444' };
+    if (price <= 300) return { text: 'Económico', color: '#4ade80' };
+    if (price <= 450) return { text: 'Medio', color: '#ffd700' };
+    if (price <= 600) return { text: 'Alto', color: '#ff8c00' };
+    return { text: 'Premium', color: '#ff6b6b' };
   };
 
   const selectedCiudad = ciudades.find(c => c.nombre === selectedCity);
@@ -215,7 +212,6 @@ export default function ExploreScreen() {
         {selectedCiudad?.featured && (
           <View style={styles.featuredTag}>
             <Ionicons name="star" size={12} color="#ffd700" />
-            <Text style={styles.featuredText}>Destacada</Text>
           </View>
         )}
         <Ionicons name="chevron-down" size={20} color="#888" />
@@ -259,18 +255,18 @@ export default function ExploreScreen() {
         </View>
       </Modal>
 
-      {/* Bad Caseros Toggle */}
+      {/* Sort Toggle */}
       <TouchableOpacity
-        style={[styles.badCaserosToggle, showBadCaseros && styles.badCaserosToggleActive]}
+        style={[styles.sortToggle, sortByLowest && styles.sortToggleActive]}
         onPress={() => {
-          setShowBadCaseros(!showBadCaseros);
+          setSortByLowest(!sortByLowest);
           setLoading(true);
           fetchPisos(searchZona || undefined);
         }}
       >
-        <Ionicons name="warning" size={18} color={showBadCaseros ? '#0f0f1a' : '#ff6b6b'} />
-        <Text style={[styles.badCaserosText, showBadCaseros && styles.badCaserosTextActive]}>
-          {showBadCaseros ? 'Mostrando peores' : 'Ver peores caseros'}
+        <Ionicons name="filter" size={18} color={sortByLowest ? '#0f0f1a' : '#4ecdc4'} />
+        <Text style={[styles.sortText, sortByLowest && styles.sortTextActive]}>
+          {sortByLowest ? 'Menor valoración primero' : 'Ordenar por valoración'}
         </Text>
       </TouchableOpacity>
 
@@ -331,7 +327,7 @@ export default function ExploreScreen() {
         <View style={styles.emptyContainer}>
           <Ionicons name="home-outline" size={56} color="#444" />
           <Text style={styles.emptyText}>No hay pisos en {selectedCity}</Text>
-          <Text style={styles.emptySubtext}>¡Sé el primero en añadir uno!</Text>
+          <Text style={styles.emptySubtext}>Sé el primero en añadir uno</Text>
           <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/(tabs)/add')}>
             <Ionicons name="add" size={18} color="#0f0f1a" />
             <Text style={styles.emptyButtonText}>Añadir piso</Text>
@@ -375,7 +371,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 4,
   },
-  featuredText: { color: '#ffd700', fontSize: 11, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#1a1a2e', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#2a2a3e' },
@@ -386,10 +381,10 @@ const styles = StyleSheet.create({
   cityOptionEmoji: { fontSize: 24 },
   cityOptionText: { flex: 1, color: '#888', fontSize: 16 },
   cityOptionTextActive: { color: '#fff', fontWeight: '600' },
-  badCaserosToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#2a1a1a', marginHorizontal: 16, marginTop: 8, padding: 10, borderRadius: 10, gap: 8, borderWidth: 1, borderColor: '#ff6b6b33' },
-  badCaserosToggleActive: { backgroundColor: '#ff6b6b' },
-  badCaserosText: { color: '#ff6b6b', fontWeight: '600', fontSize: 13 },
-  badCaserosTextActive: { color: '#0f0f1a' },
+  sortToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a2a2a', marginHorizontal: 16, marginTop: 8, padding: 10, borderRadius: 10, gap: 8, borderWidth: 1, borderColor: '#4ecdc433' },
+  sortToggleActive: { backgroundColor: '#4ecdc4' },
+  sortText: { color: '#4ecdc4', fontWeight: '600', fontSize: 13 },
+  sortTextActive: { color: '#0f0f1a' },
   searchContainer: { flexDirection: 'row', padding: 12, paddingBottom: 8, gap: 10 },
   searchInputContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a1a2e', borderRadius: 10, paddingHorizontal: 12, gap: 8 },
   searchInput: { flex: 1, height: 42, color: '#fff', fontSize: 14 },

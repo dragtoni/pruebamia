@@ -78,7 +78,7 @@ export default function AddPisoScreen() {
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería');
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería');
       return;
     }
 
@@ -98,7 +98,7 @@ export default function AddPisoScreen() {
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu cámara');
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu cámara');
       return;
     }
 
@@ -120,13 +120,13 @@ export default function AddPisoScreen() {
 
   const handleSubmit = async () => {
     if (!direccion || !zona || !precio) {
-      Alert.alert('Error', 'Completa los campos obligatorios');
+      Alert.alert('Campos requeridos', 'Completa los campos obligatorios');
       return;
     }
 
     const precioNum = parseFloat(precio);
     if (isNaN(precioNum) || precioNum <= 0) {
-      Alert.alert('Error', 'Precio inválido');
+      Alert.alert('Precio inválido', 'Introduce un precio válido');
       return;
     }
 
@@ -145,7 +145,7 @@ export default function AddPisoScreen() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      Alert.alert('🎉 ¡Gracias!', 'Piso publicado. Ayudarás a otros estudiantes.', [
+      Alert.alert('Publicado', 'Tu piso ha sido añadido correctamente', [
         {
           text: 'OK',
           onPress: () => {
@@ -171,8 +171,8 @@ export default function AddPisoScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>📢 Añadir Piso</Text>
-          <Text style={styles.subtitle}>Ayuda a estudiantes en toda España</Text>
+          <Text style={styles.title}>Añadir Piso</Text>
+          <Text style={styles.subtitle}>Comparte tu experiencia con la comunidad</Text>
 
           <View style={styles.form}>
             {/* Ciudad Selector */}
@@ -214,7 +214,7 @@ export default function AddPisoScreen() {
                 onPress={() => setTipoAlquiler('piso')}
               >
                 <Ionicons name="home" size={20} color={tipoAlquiler === 'piso' ? '#0f0f1a' : '#888'} />
-                <Text style={[styles.typeButtonText, tipoAlquiler === 'piso' && styles.typeButtonTextActive]}>Piso</Text>
+                <Text style={[styles.typeButtonText, tipoAlquiler === 'piso' && styles.typeButtonTextActive]}>Piso completo</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.typeButton, tipoAlquiler === 'habitacion' && styles.typeButtonActive]}
@@ -258,7 +258,7 @@ export default function AddPisoScreen() {
               <Ionicons name="cash" size={18} color="#888" />
               <TextInput
                 style={styles.input}
-                placeholder="300"
+                placeholder="Ej: 400"
                 placeholderTextColor="#666"
                 value={precio}
                 onChangeText={setPrecio}
@@ -267,11 +267,11 @@ export default function AddPisoScreen() {
             </View>
 
             {/* Descripción */}
-            <Text style={styles.label}>Tu experiencia</Text>
+            <Text style={styles.label}>Tu experiencia (opcional)</Text>
             <View style={[styles.inputContainer, styles.textAreaContainer]}>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="¿Cómo es el casero? ¿Fotos reales?..."
+                placeholder="Describe tu experiencia, el estado del piso, el trato del casero..."
                 placeholderTextColor="#666"
                 value={descripcion}
                 onChangeText={setDescripcion}
@@ -282,13 +282,14 @@ export default function AddPisoScreen() {
             </View>
 
             {/* Fotos */}
-            <Text style={styles.label}>📸 Fotos REALES</Text>
+            <Text style={styles.label}>Fotos (opcional)</Text>
+            <Text style={styles.photoHint}>Añade fotos reales del piso</Text>
             <View style={styles.photosContainer}>
               {fotos.map((foto, index) => (
                 <View key={index} style={styles.photoWrapper}>
                   <Image source={{ uri: foto }} style={styles.photo} />
                   <TouchableOpacity style={styles.removePhotoButton} onPress={() => removePhoto(index)}>
-                    <Ionicons name="close-circle" size={22} color="#ff4444" />
+                    <Ionicons name="close-circle" size={22} color="#ff6b6b" />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -313,8 +314,8 @@ export default function AddPisoScreen() {
                 <ActivityIndicator color="#0f0f1a" />
               ) : (
                 <>
-                  <Ionicons name="rocket" size={22} color="#0f0f1a" />
-                  <Text style={styles.submitButtonText}>¡Publicar!</Text>
+                  <Ionicons name="add-circle" size={22} color="#0f0f1a" />
+                  <Text style={styles.submitButtonText}>Publicar</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -357,6 +358,7 @@ const styles = StyleSheet.create({
   zoneChipActive: { backgroundColor: '#ffd700' },
   zoneChipText: { color: '#888', fontSize: 13 },
   zoneChipTextActive: { color: '#0f0f1a', fontWeight: '600' },
+  photoHint: { color: '#888', fontSize: 12, marginBottom: 8 },
   photosContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 6 },
   photoWrapper: { position: 'relative' },
   photo: { width: 80, height: 80, borderRadius: 10 },

@@ -8,13 +8,11 @@ import {
   Share,
   ScrollView,
   Linking,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/context/AuthContext';
-import * as Sharing from 'expo-sharing';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -23,12 +21,11 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(
       'Cerrar Sesión',
-      '¿Estás seguro de que quieres cerrar sesión?',
+      '¿Seguro que quieres salir?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
+          text: 'Salir',
           onPress: async () => {
             await logout();
             router.replace('/');
@@ -41,7 +38,7 @@ export default function ProfileScreen() {
   const handleShareApp = async () => {
     try {
       await Share.share({
-        message: '🌟 ¡Únete a Casero Stars! La app para valorar alquileres y proteger a estudiantes de caseros abusivos. ¡Basta de pagar 800€ por un zulo! 💪\n\n#CaseroStars #Granada #Estudiantes #BastaDeAbusos',
+        message: 'Casero Stars - Consulta opiniones de alquileres antes de decidir. Disponible para toda España. #CaseroStars',
         title: 'Casero Stars',
       });
     } catch (error) {
@@ -49,67 +46,11 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleShareInstagram = async () => {
-    const message = encodeURIComponent(
-      '🌟 ¡Únete a Casero Stars!\n\nLa app para valorar alquileres y proteger a estudiantes de caseros abusivos.\n\n¡Basta de pagar 800€ por un zulo! 💪\n\n#CaseroStars #Granada #Estudiantes #BastaDeAbusos'
-    );
-    
-    // Try to open Instagram
-    const instagramUrl = 'instagram://camera';
-    const canOpen = await Linking.canOpenURL(instagramUrl);
-    
-    if (canOpen) {
-      Alert.alert(
-        '📸 Compartir en Instagram',
-        'Haz una captura de la app y compártela en tu historia con los hashtags:\n\n#CaseroStars #Granada #BastaDeAbusos',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Abrir Instagram', 
-            onPress: () => Linking.openURL(instagramUrl)
-          },
-        ]
-      );
-    } else {
-      Alert.alert(
-        'Instagram no instalado',
-        'Comparte en otras redes sociales',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const handleShareTikTok = async () => {
-    const tiktokUrl = 'tiktok://';  
-    const canOpen = await Linking.canOpenURL(tiktokUrl);
-    
-    if (canOpen) {
-      Alert.alert(
-        '🎵 Compartir en TikTok',
-        'Graba un video mostrando la app y usa los hashtags:\n\n#CaseroStars #Granada #BastaDeAbusos #Estudiantes',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Abrir TikTok', 
-            onPress: () => Linking.openURL(tiktokUrl)
-          },
-        ]
-      );
-    } else {
-      Alert.alert(
-        'TikTok no instalado',
-        'Comparte en otras redes sociales',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
   const handleShareTwitter = async () => {
     const tweet = encodeURIComponent(
-      '🌟 ¡Únete a @CaseroStars! La app para valorar alquileres y proteger a estudiantes de caseros abusivos en #Granada 💪\n\n¡Basta de pagar 800€ por un zulo!\n\n#CaseroStars #BastaDeAbusos #Estudiantes'
+      'Acabo de descubrir Casero Stars, una app para consultar opiniones de alquileres en España. Muy útil para estudiantes. #CaseroStars'
     );
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${tweet}`;
-    await Linking.openURL(twitterUrl);
+    await Linking.openURL(`https://twitter.com/intent/tweet?text=${tweet}`);
   };
 
   return (
@@ -132,71 +73,53 @@ export default function ProfileScreen() {
               color="#ffd700"
             />
             <Text style={styles.badgeText}>
-              {user?.user_type === 'casero' ? 'Casero' : 'Estudiante'}
+              {user?.user_type === 'casero' ? 'Propietario' : 'Estudiante'}
             </Text>
           </View>
         </View>
 
-        {/* Social Sharing Section */}
+        {/* Share Section */}
         <View style={styles.shareSection}>
-          <Text style={styles.sectionTitle}>📢 ¡Corre la voz!</Text>
-          <Text style={styles.sectionSubtitle}>Comparte y ayuda a otros estudiantes</Text>
+          <Text style={styles.sectionTitle}>Comparte la app</Text>
+          <Text style={styles.sectionSubtitle}>Ayuda a otros a encontrar su piso ideal</Text>
           
           <View style={styles.socialButtons}>
-            <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#E4405F' }]} onPress={handleShareInstagram}>
-              <Ionicons name="logo-instagram" size={24} color="#fff" />
-              <Text style={styles.socialButtonText}>Instagram</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]} onPress={handleShareTikTok}>
-              <Ionicons name="musical-notes" size={24} color="#fff" />
-              <Text style={styles.socialButtonText}>TikTok</Text>
-            </TouchableOpacity>
-            
             <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#1DA1F2' }]} onPress={handleShareTwitter}>
               <Ionicons name="logo-twitter" size={24} color="#fff" />
               <Text style={styles.socialButtonText}>Twitter</Text>
             </TouchableOpacity>
-          </View>
-          
-          <TouchableOpacity style={styles.shareAllButton} onPress={handleShareApp}>
-            <Ionicons name="share-social" size={20} color="#0f0f1a" />
-            <Text style={styles.shareAllText}>Compartir en cualquier app</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Hashtags */}
-        <View style={styles.hashtagsSection}>
-          <Text style={styles.hashtagsTitle}>🏷️ Hashtags oficiales</Text>
-          <View style={styles.hashtags}>
-            <View style={styles.hashtag}><Text style={styles.hashtagText}>#CaseroStars</Text></View>
-            <View style={styles.hashtag}><Text style={styles.hashtagText}>#Granada</Text></View>
-            <View style={styles.hashtag}><Text style={styles.hashtagText}>#BastaDeAbusos</Text></View>
-            <View style={styles.hashtag}><Text style={styles.hashtagText}>#Estudiantes</Text></View>
-            <View style={styles.hashtag}><Text style={styles.hashtagText}>#AlquilerJusto</Text></View>
+            
+            <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#4ecdc4' }]} onPress={handleShareApp}>
+              <Ionicons name="share-social" size={24} color="#fff" />
+              <Text style={styles.socialButtonText}>Compartir</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.menuContainer}>
-          {/* Mission Section */}
+          {/* About Section */}
           <View style={styles.menuSection}>
-            <Text style={styles.menuSectionTitle}>Nuestra misión</Text>
+            <Text style={styles.menuSectionTitle}>Sobre la app</Text>
             
-            <View style={styles.missionCard}>
-              <Text style={styles.missionEmoji}>🎯</Text>
-              <Text style={styles.missionTitle}>Objetivo: 300€</Text>
-              <Text style={styles.missionText}>
-                Queremos que los alquileres vuelvan a ser justos. Un estudiante no debería pagar 800€ por una habitación.
-              </Text>
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Ionicons name="information-circle" size={24} color="#4ecdc4" />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoTitle}>¿Qué es Casero Stars?</Text>
+                  <Text style={styles.infoText}>
+                    Una plataforma donde inquilinos comparten sus experiencias sobre pisos y propietarios.
+                  </Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.infoCard}>
               <View style={styles.infoRow}>
-                <Ionicons name="shield-checkmark" size={24} color="#4ade80" />
+                <Ionicons name="star" size={24} color="#ffd700" />
                 <View style={styles.infoContent}>
-                  <Text style={styles.infoTitle}>Protege tu fianza</Text>
+                  <Text style={styles.infoTitle}>Sistema de valoración</Text>
                   <Text style={styles.infoText}>
-                    Valora honestamente para que otros sepan si el casero devuelve la fianza
+                    5 categorías: estado del piso, relación calidad-precio, propietario, ubicación y fotos.
                   </Text>
                 </View>
               </View>
@@ -205,35 +128,32 @@ export default function ProfileScreen() {
 
           {/* Tips Section */}
           <View style={styles.menuSection}>
-            <Text style={styles.menuSectionTitle}>Consejos para estudiantes</Text>
+            <Text style={styles.menuSectionTitle}>Consejos útiles</Text>
             
             <View style={styles.tipCard}>
-              <Text style={styles.tipEmoji}>📝</Text>
-              <Text style={styles.tipText}>Siempre firma un contrato</Text>
+              <Ionicons name="document-text" size={20} color="#ffd700" />
+              <Text style={styles.tipText}>Siempre firma un contrato de alquiler</Text>
             </View>
             <View style={styles.tipCard}>
-              <Text style={styles.tipEmoji}>📸</Text>
-              <Text style={styles.tipText}>Haz fotos el día que entres</Text>
+              <Ionicons name="camera" size={20} color="#ffd700" />
+              <Text style={styles.tipText}>Haz fotos del estado al entrar</Text>
             </View>
             <View style={styles.tipCard}>
-              <Text style={styles.tipEmoji}>💰</Text>
-              <Text style={styles.tipText}>No pagues más de 1 mes de fianza</Text>
+              <Ionicons name="receipt" size={20} color="#ffd700" />
+              <Text style={styles.tipText}>Guarda los recibos de pago</Text>
             </View>
             <View style={styles.tipCard}>
-              <Text style={styles.tipEmoji}>🔍</Text>
-              <Text style={styles.tipText}>Mira las valoraciones antes de alquilar</Text>
+              <Ionicons name="search" size={20} color="#ffd700" />
+              <Text style={styles.tipText}>Consulta valoraciones antes de alquilar</Text>
             </View>
           </View>
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out" size={24} color="#ff4444" />
+            <Ionicons name="log-out" size={24} color="#ff6b6b" />
             <Text style={styles.logoutText}>Cerrar Sesión</Text>
           </TouchableOpacity>
 
-          {/* Footer */}
-          <Text style={styles.footer}>
-            Hecho con ❤️ por estudiantes de Granada
-          </Text>
+          <Text style={styles.footer}>Casero Stars v1.0</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -241,10 +161,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f0f1a',
-  },
+  container: { flex: 1, backgroundColor: '#0f0f1a' },
   header: {
     alignItems: 'center',
     paddingVertical: 24,
@@ -262,17 +179,8 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#ffd700',
   },
-  name: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 8,
-  },
+  name: { fontSize: 22, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
+  email: { fontSize: 14, color: '#888', marginBottom: 8 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -282,32 +190,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 6,
   },
-  badgeText: {
-    color: '#ffd700',
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  badgeText: { color: '#ffd700', fontSize: 13, fontWeight: '600' },
   shareSection: {
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a3e',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: '#888',
-    marginTop: 2,
-    marginBottom: 16,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  sectionSubtitle: { fontSize: 13, color: '#888', marginTop: 2, marginBottom: 16 },
+  socialButtons: { flexDirection: 'row', gap: 10 },
   socialButton: {
     flex: 1,
     flexDirection: 'row',
@@ -317,58 +208,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 6,
   },
-  socialButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  shareAllButton: {
-    flexDirection: 'row',
-    backgroundColor: '#ffd700',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  shareAllText: {
-    color: '#0f0f1a',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
-  hashtagsSection: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a3e',
-  },
-  hashtagsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 12,
-  },
-  hashtags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  hashtag: {
-    backgroundColor: '#1a1a2e',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  hashtagText: {
-    color: '#4ecdc4',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  menuContainer: {
-    padding: 16,
-  },
-  menuSection: {
-    marginBottom: 24,
-  },
+  socialButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  menuContainer: { padding: 16 },
+  menuSection: { marginBottom: 24 },
   menuSectionTitle: {
     fontSize: 14,
     color: '#888',
@@ -376,56 +218,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 12,
   },
-  missionCard: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ffd70033',
-  },
-  missionEmoji: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  missionTitle: {
-    color: '#ffd700',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  missionText: {
-    color: '#ccc',
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
   infoCard: {
     backgroundColor: '#1a1a2e',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoTitle: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  infoText: {
-    color: '#888',
-    fontSize: 13,
-    lineHeight: 18,
-  },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  infoContent: { flex: 1 },
+  infoTitle: { color: '#fff', fontSize: 15, fontWeight: '600', marginBottom: 2 },
+  infoText: { color: '#888', fontSize: 13, lineHeight: 18 },
   tipCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -435,13 +237,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 10,
   },
-  tipEmoji: {
-    fontSize: 20,
-  },
-  tipText: {
-    color: '#fff',
-    fontSize: 14,
-  },
+  tipText: { color: '#fff', fontSize: 14, flex: 1 },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -452,16 +248,6 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 8,
   },
-  logoutText: {
-    color: '#ff4444',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  footer: {
-    color: '#666',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 16,
-  },
+  logoutText: { color: '#ff6b6b', fontSize: 15, fontWeight: '600' },
+  footer: { color: '#444', fontSize: 12, textAlign: 'center', marginTop: 20, marginBottom: 16 },
 });
