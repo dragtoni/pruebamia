@@ -26,7 +26,6 @@ export default function RootLayout() {
         <Stack.Screen name="auth/register" options={{ title: 'Registro', headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="piso/[id]" options={{ title: 'Detalle del Piso' }} />
-        <Stack.Screen name="piso/nuevo" options={{ title: 'Añadir Piso' }} />
         <Stack.Screen name="piso/valorar/[id]" options={{ title: 'Valorar Piso' }} />
       </Stack>
     </AuthProvider>
